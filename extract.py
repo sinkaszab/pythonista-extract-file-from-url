@@ -60,8 +60,19 @@ def extract_with_try(byte_obj):
 # 4. UI logic to work as a reducer:
 #    processes messages or runs side-effects.
 
-# 
-# OSError (gz)
+def _extract(url=None):
+    if not url:
+        yield 'URL_MISSING'
+        return
+    yield 'DOWNLOAD_AND_DETECT'
+    try:
+        cached_file = download_file_to_memory(url)
+        yield 'DOWNLOAD_SUCCESS'
+    except (ValueError, URLError):
+        yield 'DOWNLOAD_ABORTED'
+    else:
+        suggested_type = search_compression_ext(url)
+
 
 def extract(url):
     if not url:
