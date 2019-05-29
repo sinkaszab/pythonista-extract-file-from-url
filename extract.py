@@ -55,7 +55,18 @@ def extract_with_try(byte_obj):
 
 
 class Actions:
+    URL_MISSING = 'URL_MISSING'
     EXTRACT_STARTED = 'EXTRACT_STARTED'
+    EXTRACT_FAILED = 'EXTRACT_FAILED'
+    EXTRACT_SUCCESS = 'EXTRACT_SUCCESS'
+    EXTRACT_FINISHED = 'EXTRACT_FINISHED'
+    DOWNLOAD_STARTED = 'DOWNLOAD_STARTED'
+    DOWNLOAD_SUCCESS = 'DOWNLOAD_SUCCESS'
+    DOWNLOAD_ABORTED = 'DOWNLOAD_ABORTED'
+    TYPE_DETECTION_STARTED = 'TYPE_DETECTION_STARTED'
+    TYPE_DETECTION_FAILED = 'TYPE_DETECTION_FAILED'
+    TYPE_DETECTION_SUCCESS = 'TYPE_DETECTION_SUCCESS'
+    SWITCH_TO_TRY_ALL_MODE = 'SWITCH_TO_TRY_ALL_MODE'
 
 
 Message = namedtuple('Message', ['action', 'data'])
@@ -64,62 +75,41 @@ Message = namedtuple('Message', ['action', 'data'])
 def _extract(url=None):
     yield Message(Actions.EXTRACT_STARTED, None)
     if not url:
-        yield Message('URL_MISSING', None)
-        yield Message('EXTRACT_FAILED', None)
-        yield Message('EXTRACT_FINISHED', None)
+        yield Message(Actions.URL_MISSING, None)
+        yield Message(Actions.EXTRACT_FAILED, None)
+        yield Message(Actions.EXTRACT_FINISHED, None)
         return
-    yield Message('DOWNLOAD_STARTED', None)
+    yield Message(Actions.DOWNLOAD_STARTED, None)
     try:
         cached_file = download_file_to_memory(url)
-        yield Message('DOWNLOAD_SUCCESS', None)
+        yield Message(Actions.DOWNLOAD_SUCCESS, None)
     except (ValueError, URLError):
-        yield Message('DOWNLOAD_ABORTED', None)
+        yield Message(Actions.DOWNLOAD_ABORTED, None)
     else:
-        yield Message('TYPE_DETECTION_STARTED', None)
+        yield Message(Actions.TYPE_DETECTION_STARTED, None)
         suggested_type = search_compression_ext(url)
         if suggested_type:
-            yield Message('TYPE_DETECTION_SUCCESS',
+            yield Message(Actions.TYPE_DETECTION_SUCCESS,
                           {'suggested_type': suggested_type})
             extract_suggested_type(suggested_type, cached_file)
-            yield Message('EXTRACT_SUCCESS', None)
+            yield Message(Actions.EXTRACT_SUCCESS, None)
         else:
-            yield Message('TYPE_DETECTION_FAILED', None)
+            yield Message(Actions.TYPE_DETECTION_FAILED, None)
             try:
-                yield Message('SWITCH_TO_TRY_ALL_MODE', None)
+                yield Message(Actions.SWITCH_TO_TRY_ALL_MODE, None)
                 extract_with_try(cached_file)
             except (zipfile.BadZipFile, OSError):
-                yield Message('EXTRACT_FAILED', None)
+                yield Message(Actions.EXTRACT_FAILED, None)
             else:
-                yield Message('EXTRACT_SUCCESS', None)
-    yield Message('EXTRACT_FINISHED', None)
+                yield Message(Actions.EXTRACT_SUCCESS, None)
+    yield Message(Actions.EXTRACT_FINISHED, None)
 
 
-def extract(url):
-    if not url:
-        print('No url provided.')
-        return
-    try:
-        print('Start download & guess type.')
-        cached_file = download_file_to_memory(url)
-        suggested_type = search_compression_ext(url)
-    except (ValueError, URLError):
-        print('Process aborted: Invalid URL.')
-    else:
-        if suggested_type:
-            print(f'Suggested type is: "{suggested_type}", process...')
-            extract_suggested_type(suggested_type, cached_file)
-            print('Successfully extracted.')
-        else:
-            print('Could not suggest type from URL.')
-            try:
-                print('Trying known formats.')
-                extract_with_try(cached_file)
-            except (zipfile.BadZipFile, OSError):
-                print('Extract process failed.')
-            else:
-                print('Successfully extracted.')
+def extract():
+    for message in _extract(input('Please provide a URL: ')):
+        print(message)
 
 
 if __name__ == '__main__':
-    extract(input('Please provide a URL: '))
+    extract()
 
