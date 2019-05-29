@@ -6,6 +6,7 @@ from os.path import dirname, abspath, join
 import gzip
 import tarfile
 import zipfile
+from collections import namedtuple
 
 
 def download_file_to_memory(url):
@@ -53,25 +54,44 @@ def extract_with_try(byte_obj):
     extract_tar_gz(byte_obj)
 
 
-# TODO:
-# 1. Refactor extract to a generator or iterator.
-# 2. Iterate business logic with next()
-# 3. Yield messages.
-# 4. UI logic to work as a reducer:
-#    processes messages or runs side-effects.
+class Actions:
+    EXTRACT_STARTED = 'EXTRACT_STARTED'
+
+
+Message = namedtuple('Message', ['action', 'data'])
+
 
 def _extract(url=None):
+    yield Message(Actions.EXTRACT_STARTED, None)
     if not url:
-        yield 'URL_MISSING'
+        yield Message('URL_MISSING', None)
+        yield Message('EXTRACT_FAILED', None)
+        yield Message('EXTRACT_FINISHED', None)
         return
-    yield 'DOWNLOAD_AND_DETECT'
+    yield Message('DOWNLOAD_STARTED', None)
     try:
         cached_file = download_file_to_memory(url)
-        yield 'DOWNLOAD_SUCCESS'
+        yield Message('DOWNLOAD_SUCCESS', None)
     except (ValueError, URLError):
-        yield 'DOWNLOAD_ABORTED'
+        yield Message('DOWNLOAD_ABORTED', None)
     else:
+        yield Message('TYPE_DETECTION_STARTED', None)
         suggested_type = search_compression_ext(url)
+        if suggested_type:
+            yield Message('TYPE_DETECTION_SUCCESS',
+                          {'suggested_type': suggested_type})
+            extract_suggested_type(suggested_type, cached_file)
+            yield Message('EXTRACT_SUCCESS', None)
+        else:
+            yield Message('TYPE_DETECTION_FAILED', None)
+            try:
+                yield Message('SWITCH_TO_TRY_ALL_MODE', None)
+                extract_with_try(cached_file)
+            except (zipfile.BadZipFile, OSError):
+                yield Message('EXTRACT_FAILED', None)
+            else:
+                yield Message('EXTRACT_SUCCESS', None)
+    yield Message('EXTRACT_FINISHED', None)
 
 
 def extract(url):
