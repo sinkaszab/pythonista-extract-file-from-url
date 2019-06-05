@@ -69,6 +69,22 @@ class Actions:
     SWITCH_TO_TRY_ALL_MODE = 'SWITCH_TO_TRY_ALL_MODE'
 
 
+readables = {
+    Actions.URL_MISSING: 'You didn\'t provide a URL.',
+    Actions.EXTRACT_STARTED: 'Extract process started.',
+    Actions.EXTRACT_FAILED: 'Extract process failed.',
+    Actions.EXTRACT_SUCCESS: 'Extract process success.',
+    Actions.EXTRACT_FINISHED: 'Extract process finished.',
+    Actions.DOWNLOAD_STARTED: 'Downloading file...',
+    Actions.DOWNLOAD_SUCCESS: 'Downloaded.',
+    Actions.DOWNLOAD_ABORTED: 'Download aborted...',
+    Actions.TYPE_DETECTION_STARTED: 'Detecting type...',
+    Actions.TYPE_DETECTION_FAILED: 'Couldn\'t identify compression type.',
+    Actions.TYPE_DETECTION_SUCCESS: 'Compression detected',
+    Actions.SWITCH_TO_TRY_ALL_MODE:
+    'Type detection switches to try all modes.',
+}
+
 Message = namedtuple('Message', ['action', 'data'])
 
 
@@ -107,7 +123,12 @@ def _extract(url=None):
 
 def extract():
     for message in _extract(input('Please provide a URL: ')):
-        print(message)
+        if message.action == Actions.TYPE_DETECTION_SUCCESS:
+            print(
+                f"{readables.get(message.action, message.action)}: {message.data['suggested_type']}"
+            )
+        else:
+            print(readables.get(message.action, message.action))
 
 
 if __name__ == '__main__':
